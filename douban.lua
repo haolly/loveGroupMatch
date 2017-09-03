@@ -3,7 +3,14 @@
 --2，只支持男女匹配，其他类型的超出我的能力范围，sorry
 --3，除了问卷中有涉及的明确匹配要求的项目，例如身高，其他项目的计分方法严重带有自己的个人色彩。例如我认为学历不是很重要，所以权重设置为5
 --4，注意，和你最匹配的那个人，对ta来说，你不一定就是ta最匹配的人。所以不要想着等ta来主动找你，你需要主动出击！
---5, 问卷设计有些不足之处，例如有学历的要求但是没有学历的说明，类似的还有颜值
+
+--修改说明：
+-- 添加新列需要做的事情：
+-- 1，在 tbColumnName 里面添加新的列名字，顺序要和 输入文件(txt 文件)的列顺序一致, 输入文件中这一列的内容不能为空
+-- 2，在 如果这个列你们的内容是数字，将这个列名添加到 tbNumberColumnName 里面，顺序不重要
+-- 3，在 tbWeight 里面添加新列的权重
+-- 4，添加新的积分函数，格式为 Judge_XXX, 其中 XXX 就是列名，可以参考其他 Judge 函数的写法
+-- 5, 同一个条件只需要添加一个积分函数即可，例如 education 和 educationRequire ，只需要添加一个 Judge 积分函数即可
 ---------------------------------------分割线----------------------------------------------
 
 local tbData = {
@@ -33,10 +40,13 @@ local tbColumnName = {
     "sexView",
     "relationView",
     "face",
+    "faceRequire",
     "education",
+    "educationRequire",
     "location",
 }
 
+--哪些列的名字内容是数字
 local tbNumberColumnName = {
     "age",
     "acceptAgeHigh",
@@ -49,7 +59,10 @@ local tbNumberColumnName = {
     "preferLoveProcess",
     "moneyView",
     "sexView",
+    "face",
+    "faceRequire",
     "education",
+    "educationRequire",
 }
 
 --每一项匹配计算的权重，最高为10，最低为1, 默认为1
@@ -67,6 +80,7 @@ local tbWeight = {
     sexView = 10,
     relationView = 8,
     education = 5,
+    face = 6,
 }
 
 --需要补充类似的爱好
@@ -90,8 +104,19 @@ local analogyWords = {
 --最后打印出每个人的 top 前几匹配人信息
 local topOfMatchForPrint = 2
 local outputFileName = "doubanLoveGroupLoveMatch.csv"
+local inputFileName = "douban2.txt"
+local debugOn = false
 
 ---------------------------------------分割线----------------------------------------------
+
+old_print = print
+print = function(...)
+    --local calling_script = debug.getinfo(2).short_src
+    --old_print('Print called by: '..calling_script)
+    if(debugOn) then
+        old_print(...)
+    end
+end
 
 local tbUtils = {}
 function tbUtils:Contains(tbSet, item)
@@ -182,11 +207,12 @@ function tbUtils:ParseOnePerson(line)
     local tbPerson = {}
     local i = 1
     for k,v in ipairs(tbColumnName) do
-        if(self:Contains(tbNumberColumnName, k)) then
+        if(self:Contains(tbNumberColumnName, v)) then
             tbPerson[v] = tonumber(tbRaw[i])
         else
             tbPerson[v] = tbRaw[i]
         end
+        print("column:value", v, tbPerson[v])
         i = i+1
     end
     return tbPerson
@@ -197,10 +223,9 @@ end
 local zhuHaiLoveGroup = {}
 
 function zhuHaiLoveGroup:SetUp()
-    local fileName = "douban.txt"
+    local fileName = inputFileName
     for line in io.lines(fileName) do
         local tbPerson = tbUtils:ParseOnePerson(line)
-        --print("tbPerson.id", tbPerson.id)
         tbData[#tbData + 1] = tbPerson
     end
 end
@@ -479,16 +504,64 @@ function zhuHaiLoveGroup:Judge_relationView(you, other, tbPerson, tbPersonOther)
     return res
 end
 
-function zhuHaiLoveGroup:Judge_face(you, other)
-    return 0
+function zhuHaiLoveGroup:Judge_face(you, other, tbPerson, tbPersonOther)
+    local res = 0
+    local require = tbPerson.faceRequire
+    local gender = tbPerson.sex
+    local highRequire = false
+    if(require - you >= 2) then
+        highRequire = true
+    end
+    if(gender == "男") then
+        if(require == 4) then
+            if(other == 4) then
+                res = 10
+            elseif(other == 3) then
+                res = 5
+            else
+                res = 1
+            end
+        elseif(other >= require) then
+            res = 10
+        else
+            res = 1
+        end
+    else
+        if(require == 4) then
+            if(other == 4) then
+                res = 10
+            elseif(other == 3) then
+                res = 8
+            elseif(other == 2) then
+                res = 3
+            elseif(other == 1) then
+                res = 1
+            end
+        elseif(other >= require) then
+            res = 10
+        else
+            res = 1
+        end
+    end
+    if(highRequire) then
+        res = res * 0.5
+    end
+    return res
 end
 
-function zhuHaiLoveGroup:Judge_education(you, other)
+function zhuHaiLoveGroup:Judge_education(you, other, tbPerson, tbPersonOther)
+    print("you", you)
+    print("other", other)
+    print("id", tbPerson.id)
+    local require = tbPerson.educationRequire
+    print("require", require)
     local res = 0
     if(you == 0) then
         res = 10
-    elseif(other >= you) then
+    elseif(other >= require) then
         res = 10
+    elseif(require - other == 1) then
+        res = 5
     else
         res = 3
     end
