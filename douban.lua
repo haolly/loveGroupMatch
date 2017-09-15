@@ -67,38 +67,40 @@ local tbNumberColumnName = {
 
 --每一项匹配计算的权重，最高为10，最低为1, 默认为1
 local tbWeight = {
-    age = 4,
+    age = 10,
     nativePlace = 2,
     liveInZhuHai = 7,
-    height = 5,
-    bodyType = 8,
+    height = 10,
+    bodyType = 5,
     salaryK = 6,
-    hobby = 5,
-    preferLoveProcess = 5,
-    character = 4,
-    moneyView = 9,
-    sexView = 10,
+    hobby = 6,
+    preferLoveProcess = 4,
+    character = 7,
+    moneyView = 8,
+    sexView = 7,
     relationView = 8,
-    education = 5,
     face = 6,
+	education = 6,
 }
 
 --需要补充类似的爱好
 local analogyWords = {
-    {"阅读", "看书", "看小说", "书", "小说", "写作", "话剧"},
-    {"美剧", "英剧", "看美剧", "看英剧", "电影", "看电影", "韩剧", "日剧", "剧"},
-    {"素描", "绘画", "画画"},
-    {"足球", "游泳", "踢足球", "篮球", "打篮球", "网球", "打网球", "羽毛球", "打羽毛球", "慢跑", "跑步", "健身", "瑜伽", "轮滑"},
+    {"阅读", "看书", "看小说", "书", "小说", "写作", "话剧","历史","心理学","写作","英语"},
+    {"美剧", "英剧", "看美剧", "看英剧", "电影", "看电影", "韩剧", "日剧", "剧","动漫","看话剧"},
+    {"素描", "绘画", "画画","手工","手作","插花"},
+    {"足球", "游泳", "踢足球", "篮球", "打篮球", "网球", "打网球", "羽毛球", "打羽毛球", "慢跑", "跑步", "健身", "瑜伽", "轮滑","桌球","各球类运动"},
     {"桌游", "狼人杀", "三国杀"},
-    {"泡吧", "喝酒",},
+    {"泡吧", "喝酒"},
     {"八卦", "聊天"},
-    {"唱歌", "音乐", "听歌", "聊天"},
-    {"徒步", "户外", "爬山", "自行车", "骑车"},
-    {"摄影", "旅行", "潜水"},
-    {"美食", "吃", "宅", "做饭"},
-    {"民谣"},
-    {"游戏", "lol"},
-    {"看海"}
+    {"唱歌", "音乐", "听音乐","听歌","独立摇滚"},
+    {"徒步", "户外", "爬山", "自行车", "骑车","骑行","行山"},
+    {"摄影", "旅行", "潜水","游泳"},
+    {"美食", "吃", "宅", "发呆","睡觉","做饭","烘焙","看手机"},
+    {"跳舞","拉丁"},
+    {"游戏", "编程"},
+    {"看海"},
+	{"弹吉他","吉他","尤克里里","民谣","古琴","口琴","萨克斯","小号","弹琴","古筝"},
+	{"国际象棋"}
 }
 
 --最后打印出每个人的 top 前几匹配人信息
@@ -106,6 +108,7 @@ local topOfMatchForPrint = 2
 local outputFileName = "doubanLoveGroupLoveMatch.csv"
 local inputFileName = "douban2.txt"
 local debugOn = false
+local thresholdForMatchScore = 550
 
 ---------------------------------------分割线----------------------------------------------
 
@@ -593,8 +596,11 @@ function zhuHaiLoveGroup:CalculateScore(tbPerson, tbData)
                     --print("not find weight for ", k)
                     weight = 1
                 end
+                local fieldValue = v
                 if haveJudgeFunc then
-                    score = score + math.floor(func(self, v, otherPerson[k], tbPerson, otherPerson) * weight)
+                    -- A 对 B 的得分要综合 A对 B 和 B 对 A 两个分数
+                    score = score + math.floor(func(self, fieldValue, otherPerson[k], tbPerson, otherPerson) * weight)
+                    score = score + math.floor(func(self, otherPerson[k], fieldValue, otherPerson, tbPerson) * weight)
                 else
                     --print("not find judge func for ", k)
                 end
@@ -621,7 +627,9 @@ function zhuHaiLoveGroup:PrintResult(tbResForPerson)
         if(k > topOfMatchForPrint) then
             break
         end
-        tbUtils:PrintPerson(v.person, v.score)
+        if(v.score >= thresholdForMatchScore) then
+            tbUtils:PrintPerson(v.person, v.score)
+        end
     end
 end
 
